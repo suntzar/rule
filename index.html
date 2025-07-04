@@ -316,13 +316,27 @@
           <!-- Aba Configurações -->
           <div id="settings" class="tab-content">
             <div class="container-fluid">
-              <h5>Configurações</h5>
+              <h5>Configurações Gerais</h5>
               <button id="clear-history" class="btn-custom mb-2">Limpar Histórico</button>
               <button id="clear-favorites" class="btn-custom mb-2">Limpar Favoritos</button>
               <div class="form-check mt-3">
                 <input class="form-check-input" type="checkbox" id="dark-mode" checked />
                 <label class="form-check-label" for="dark-mode">Modo Escuro</label>
               </div>
+              
+              <!-- ALTERADO: Gerenciamento de Dados -->
+              <hr class="my-4">
+              <h5>Gerenciamento de Dados</h5>
+              <p class="text-muted small">Faça backup ou restaure seus dados (favoritos e histórico).</p>
+              
+              <div class="d-flex flex-wrap">
+                  <button id="download-json-btn" class="btn-custom mb-2 me-2"><i class="fas fa-download"></i> Baixar JSON</button>
+                  <button id="copy-json-btn" class="btn-custom mb-2 me-2"><i class="fas fa-copy"></i> Copiar JSON</button>
+                  <button id="upload-json-btn" class="btn-custom mb-2"><i class="fas fa-upload"></i> Carregar JSON</button>
+                  <input type="file" id="upload-json-input" accept=".json" style="display: none;">
+              </div>
+              <!-- FIM DA ALTERAÇÃO -->
+
             </div>
           </div>
           <!-- Aba Histórico -->
@@ -493,189 +507,108 @@
          Eventos e Bindings
       =================================================== */
       const bindEvents = () => {
-        // Alternar entre abas
-        $(".tab-button").on("click", function() {
-          const tab = $(this).data("tab");
-          switchTab(tab);
-        });
-
-        // Atualizar aba ativa ao rolar o conteúdo
+        // ... (todos os outros eventos permanecem iguais)
+        $(".tab-button").on("click", function() { const tab = $(this).data("tab"); switchTab(tab); });
         const tabContentContainer = document.querySelector(".tab-content-container");
-        tabContentContainer.addEventListener("scroll", () => {
-          const index = Math.round(tabContentContainer.scrollLeft / tabContentContainer.offsetWidth);
-          $(".tab-button").removeClass("active");
-          const activeTabId = document.querySelectorAll(".tab-content")[index].id;
-          $(`.tab-button[data-tab="${activeTabId}"]`).addClass("active");
-        });
-
-        // Efeito fade-in com IntersectionObserver
-        const observer = new IntersectionObserver(entries => {
-          entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              entry.target.classList.add("visible");
-            }
-          });
-        }, { threshold: 0.5 });
+        tabContentContainer.addEventListener("scroll", () => { const index = Math.round(tabContentContainer.scrollLeft / tabContentContainer.offsetWidth); $(".tab-button").removeClass("active"); const activeTabId = document.querySelectorAll(".tab-content")[index].id; $(`.tab-button[data-tab="${activeTabId}"]`).addClass("active"); });
+        const observer = new IntersectionObserver(entries => { entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add("visible"); } }); }, { threshold: 0.5 });
         document.querySelectorAll(".tab-content").forEach(content => observer.observe(content));
+        $("#load-more").on("click", () => { currentPage++; loadPosts("feed-container", currentTags, currentPage); });
+        $("#load-more-search").on("click", () => { currentPage++; loadPosts("search-results", currentTags, currentPage); });
+        $("#filter-type").on("change", function() { const type = $(this).val(); currentTags = type === "image" ? "-video" : type === "video" ? "video" : ""; currentPage = 0; $("#feed-container").empty(); loadPosts("feed-container", currentTags, currentPage); });
+        $("#search-form").on("submit", (e) => { e.preventDefault(); currentTags = $("#search-input").val(); currentPage = 0; $("#search-results").empty(); $("#load-more-search").hide(); loadPosts("search-results", currentTags); let history = JSON.parse(localStorage.getItem("history")) || []; if (currentTags && !history.includes(currentTags)) { history.push(currentTags); localStorage.setItem("history", JSON.stringify(history)); updateHistory(); } });
+        $("#search-input").autocomplete({ source: (request, response) => { $.get(`https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&name=${request.term}`, data => { const tags = $(data).find("tag").map(function() { return $(this).attr("name"); }).get(); response(tags); }); }, minLength: 2 });
+        $("#clear-history").on("click", () => { localStorage.removeItem("history"); updateHistory(); });
+        $(document).on("click", ".remove-history", function() { const tag = $(this).data("tag"); let history = JSON.parse(localStorage.getItem("history")) || []; history = history.filter(h => h !== tag); localStorage.setItem("history", JSON.stringify(history)); updateHistory(); });
+        $("#clear-favorites").on("click", () => { favorites = []; localStorage.setItem("favorites", JSON.stringify(favorites)); updateFavorites(); });
+        $("#sort-favorites").on("change", function() { const sortBy = $(this).val(); if (sortBy === "date") { favorites.sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0)); } else if (sortBy === "tags") { favorites.sort((a, b) => a.tags.localeCompare(b.tags)); } updateFavorites(); });
+        $(document).on("click", ".download-btn", function() { const url = $(this).data("url"); const link = document.createElement("a"); link.href = url; link.download = url.split("/").pop(); document.body.appendChild(link); link.click(); document.body.removeChild(link); });
+        $(document).on("click", ".fullscreen-btn", function() { const media = $(this).closest(".card").find("img, video")[0]; if (media && media.requestFullscreen) { media.requestFullscreen(); } });
+        $(document).on("click", ".favorite-btn", function() { const postId = $(this).data("id"); const $card = $(this).closest(".card"); const post = { id: postId, file_url: $card.find(".download-btn").data("url"), tags: $card.find(".tag-list").text(), dateAdded: new Date() }; if ($(this).hasClass("active")) { favorites = favorites.filter(fav => fav.id !== postId); $(this).removeClass("active"); } else { favorites.push(post); $(this).addClass("active"); } localStorage.setItem("favorites", JSON.stringify(favorites)); updateFavorites(); });
+        $(document).on("click", ".remove-favorite", function() { const postId = $(this).data("id"); favorites = favorites.filter(fav => fav.id !== postId); localStorage.setItem("favorites", JSON.stringify(favorites)); updateFavorites(); });
+        $(document).on("click", ".share-btn", function() { const url = $(this).data("url"); if (navigator.share) { navigator.share({ title: "Rule34 Post", url }); } else { alert("Copie o link: " + url); } });
+        $(document).on("click", "#history-list li", function(e) { if ($(e.target).is(".remove-history, .fa-xmark")) return; const tag = $(this).data("tag"); $("#search-input").val(tag); $("#search-form").submit(); switchTab('search'); });
+        $(document).on("click", ".card", function(e) { if ($(e.target).is("button, i")) return; const $card = $(this); const mediaUrl = $card.find(".download-btn").data("url"); const tags = $card.find(".tag-list").text(); const mediaElement = renderMedia(mediaUrl, tags); $("#postModal .media-container").html(mediaElement); $("#modal-tags").text(tags); $("#postModal").modal("show"); });
 
-        // Carregar mais posts
-        $("#load-more").on("click", () => {
-          currentPage++;
-          loadPosts("feed-container", currentTags, currentPage);
-        });
-        $("#load-more-search").on("click", () => {
-          currentPage++;
-          loadPosts("search-results", currentTags, currentPage);
-        });
-
-        // Filtro por tipo de mídia
-        $("#filter-type").on("change", function() {
-          const type = $(this).val();
-          currentTags = type === "image" ? "-video" : type === "video" ? "video" : "";
-          currentPage = 0;
-          $("#feed-container").empty();
-          loadPosts("feed-container", currentTags, currentPage);
-        });
-
-        // Busca por tags
-        $("#search-form").on("submit", (e) => {
-          e.preventDefault();
-          currentTags = $("#search-input").val();
-          currentPage = 0;
-          $("#search-results").empty();
-          $("#load-more-search").hide();
-          loadPosts("search-results", currentTags);
-          let history = JSON.parse(localStorage.getItem("history")) || [];
-          if (currentTags && !history.includes(currentTags)) {
-            history.push(currentTags);
-            localStorage.setItem("history", JSON.stringify(history));
-            updateHistory();
-          }
+        /* ALTERADO: Eventos para Gerenciamento de Dados (Favoritos e Histórico) */
+        
+        // Função auxiliar para pegar todos os dados
+        const getBackupData = () => {
+            const history = JSON.parse(localStorage.getItem("history")) || [];
+            return {
+                favorites,
+                history
+            };
+        };
+        
+        // Baixar dados como JSON
+        $("#download-json-btn").on("click", function() {
+            const backupData = getBackupData();
+            const jsonString = JSON.stringify(backupData, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "r34_app_data.json"; // Nome do arquivo atualizado
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         });
 
-        // Autocomplete para tags
-        $("#search-input").autocomplete({
-          source: (request, response) => {
-            $.get(`https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&name=${request.term}`, data => {
-              const tags = $(data).find("tag").map(function() {
-                return $(this).attr("name");
-              }).get();
-              response(tags);
+        // Copiar dados como JSON
+        $("#copy-json-btn").on("click", function() {
+            const backupData = getBackupData();
+            const jsonString = JSON.stringify(backupData, null, 2);
+            navigator.clipboard.writeText(jsonString).then(() => {
+                const originalText = $(this).html();
+                $(this).html('<i class="fas fa-check"></i> Copiado!');
+                setTimeout(() => $(this).html(originalText), 2000);
+            }).catch(err => {
+                alert("Falha ao copiar: " + err);
             });
-          },
-          minLength: 2
         });
 
-        // Limpar histórico
-        $("#clear-history").on("click", () => {
-          localStorage.removeItem("history");
-          updateHistory();
+        // Acionar o input de arquivo
+        $("#upload-json-btn").on("click", function() {
+            $("#upload-json-input").click();
         });
 
-        // Remover item individual do histórico
-        $(document).on("click", ".remove-history", function() {
-          const tag = $(this).data("tag");
-          let history = JSON.parse(localStorage.getItem("history")) || [];
-          history = history.filter(h => h !== tag);
-          localStorage.setItem("history", JSON.stringify(history));
-          updateHistory();
-        });
+        // Ler o arquivo JSON carregado
+        $("#upload-json-input").on("change", function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-        // Limpar favoritos
-        $("#clear-favorites").on("click", () => {
-          favorites = [];
-          localStorage.setItem("favorites", JSON.stringify(favorites));
-          updateFavorites();
-        });
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsedData = JSON.parse(e.target.result);
+                    // Validação robusta da estrutura do JSON
+                    if (parsedData && Array.isArray(parsedData.favorites) && Array.isArray(parsedData.history)) {
+                        // Restaura os favoritos
+                        favorites = parsedData.favorites;
+                        localStorage.setItem("favorites", JSON.stringify(favorites));
+                        
+                        // Restaura o histórico
+                        localStorage.setItem("history", JSON.stringify(parsedData.history));
 
-        // Ordenar favoritos
-        $("#sort-favorites").on("change", function() {
-          const sortBy = $(this).val();
-          if (sortBy === "date") {
-            favorites.sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
-          } else if (sortBy === "tags") {
-            favorites.sort((a, b) => a.tags.localeCompare(b.tags));
-          }
-          updateFavorites();
+                        // Atualiza a UI
+                        updateFavorites();
+                        updateHistory();
+                        
+                        alert("Dados (favoritos e histórico) carregados com sucesso!");
+                    } else {
+                        alert("Erro: O arquivo JSON não tem o formato esperado ({ favorites: [...], history: [...] }).");
+                    }
+                } catch (error) {
+                    alert("Erro ao ler o arquivo. Verifique se é um JSON válido.");
+                    console.error("Erro ao parsear JSON:", error);
+                }
+            };
+            reader.readAsText(file);
+            $(this).val(''); // Limpa o input para permitir carregar o mesmo arquivo novamente
         });
-
-        // Download da mídia
-        $(document).on("click", ".download-btn", function() {
-          const url = $(this).data("url");
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = url.split("/").pop();
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        });
-
-        // Exibir mídia em tela cheia
-        $(document).on("click", ".fullscreen-btn", function() {
-          const media = $(this).closest(".card").find("img, video")[0];
-          if (media && media.requestFullscreen) {
-            media.requestFullscreen();
-          }
-        });
-
-        // Favoritar ou desfavoritar post
-        $(document).on("click", ".favorite-btn", function() {
-          const postId = $(this).data("id");
-          const $card = $(this).closest(".card");
-          const post = {
-            id: postId,
-            file_url: $card.find(".download-btn").data("url"),
-            tags: $card.find(".tag-list").text(),
-            dateAdded: new Date()
-          };
-          if ($(this).hasClass("active")) {
-            favorites = favorites.filter(fav => fav.id !== postId);
-            $(this).removeClass("active");
-          } else {
-            favorites.push(post);
-            $(this).addClass("active");
-          }
-          localStorage.setItem("favorites", JSON.stringify(favorites));
-          updateFavorites();
-        });
-
-        // Remover favorito
-        $(document).on("click", ".remove-favorite", function() {
-          const postId = $(this).data("id");
-          favorites = favorites.filter(fav => fav.id !== postId);
-          localStorage.setItem("favorites", JSON.stringify(favorites));
-          updateFavorites();
-        });
-
-        // Compartilhar mídia
-        $(document).on("click", ".share-btn", function() {
-          const url = $(this).data("url");
-          if (navigator.share) {
-            navigator.share({ title: "Rule34 Post", url });
-          } else {
-            alert("Copie o link: " + url);
-          }
-        });
-
-        // Histórico interativo: clicar para buscar novamente
-        $(document).on("click", "#history-list li", function(e) {
-          if ($(e.target).hasClass("remove-history")) return;
-          const tag = $(this).data("tag");
-          $("#search-input").val(tag);
-          $("#search-form").submit();
-        });
-
-        // Modal de detalhes ao clicar na card (exceto botões/ícones)
-        $(document).on("click", ".card", function(e) {
-          if ($(e.target).is("button, i")) return;
-          const $card = $(this);
-          const mediaUrl = $card.find(".download-btn").data("url");
-          const tags = $card.find(".tag-list").text();
-          const mediaElement = renderMedia(mediaUrl, tags);
-          $("#postModal .media-container").html(mediaElement);
-          $("#modal-tags").text(tags);
-          $("#postModal").modal("show");
-        });
+        /* FIM DA ALTERAÇÃO */
       };
 
       /* ===================================================
