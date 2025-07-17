@@ -7,6 +7,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Rule34 App - Powered by Noxss</title>
 
+        <!-- Favicon SVG incorporado via Base64 -->
+        <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj48cGF0aCBmaWxsPSIjZGI2Mzk5IiBkPSJNMTU5LjMgNS40YzcuOC03LjMgMTkuOS03LjIgMjcuNyAuMWM2Ny44IDYzLjIgMTMwLjcgMTI5LjkgMTkwLjUgMTk4Yy00LjUgNy41LTExLjUgMTUuMy0xOS40IDI1LjZjLTcuOS03LjQtMjAuMS03LjQtMjguMSAuMWMtMzQuNiAzMy02My45IDc2LjYtODQuNSAxMThjLTIwLjMgNDAuOC0zMy44IDgyLjUtMzMuOCAxMTEuOUM0NDggNDA0LjIgMzQ4LjIgNTEyIDIyNCA1MTJDOTguNCA1MTIgMCA0MDQuMSAwIDI3Ni41YzAtMzguNCAxNy44LTg1LjMgNDUuNC0xMzEuN0M3My4zIDk3LjcgMTEyLjcgNDguNiAxNTkuMyA1LjR6TTIyNS43IDQxNmM0Mi4xLTI5LjQgNTMuNC04OC4yIDI4LjEtMTM0LjRjLTQuNS05LTE2LTkuNi0yMi41LTJsLTI1LjIgMjkuM2MtNi42IDcuNi0xOC41IDcuNC0yNC43LS41Yy0xNi41LTIxLTQ2LTU4LjUtNjIuOC03OS44Yy02LjMtOC0xOC4zLTguMS0yNC43LS4xYy0zMy44IDQyLjUtNTAuOCA2OS4zLTUwLjggOTkuNEMxMTIgMzc1LjQgMTYyLjYgNDE2IDIyNS43IDQxNnoiLz48L3N2Zz4=" type="image/svg+xml" />
+
         <!-- DEPENDÊNCIAS DE TERCEIROS (Ícones) -->
         <script defer src="https://unpkg.com/feather-icons"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -171,7 +174,7 @@
                                 <div class="noxss-form-group">
                                     <select id="filter-type" class="noxss-select">
                                         <option value="hara_id_21">hara id 21</option>
-                                        <option value="">Todos</option>
+                                        <option value="index">Todos</option>
                                         <option value="image">Imagens</option>
                                         <option value="video">Vídeos</option>
                                     </select>
@@ -622,7 +625,7 @@
                         loadPosts(ui.searchResultsContainer, currentTags, currentPage, true);
                     });
                     ui.filterTypeSelect.addEventListener("change", e => {
-                        currentTags = e.target.value === "image" ? "-video" : e.target.value === "video" ? "video" : "";
+                        currentTags = e.target.value === "image" ? "-video" : e.target.value === "video" ? "video" : e.target.value;
                         currentPage = 0;
                         ui.feedContainer.innerHTML = "";
                         loadPosts(ui.feedContainer, currentTags, currentPage, false);
