@@ -22,7 +22,8 @@ const jsFilesToCombine = [
     'components/player.js',
     'components/tabs.js',
     'components/toasts.js',
-    'components/typography.js'
+    'components/typography.js',
+    'components/palette.js'
     // Adicione outros componentes aqui se necessário
 ];
 
